@@ -1,0 +1,41 @@
+
+# Stage 1: Build the Java application
+FROM maven:3.8.5-openjdk-17 AS build
+
+# Set the working directory
+WORKDIR /app
+
+# Copy the Maven project files
+COPY pom.xml ./
+COPY src ./src
+
+# Build the application
+RUN mvn clean package
+
+# Stage 2: Run the application with Tomcat
+FROM tomcat:9.0.56-jdk17-openjdk-slim
+
+# Create a non-root user and group
+RUN addgroup --system appgroup && adduser --system --ingroup appgroup appuser
+
+# Set the working directory for Tomcat
+WORKDIR /usr/local/tomcat/webapps
+
+# Copy the built application from the build stage to the Tomcat webapps directory
+COPY --from=build /app/target/*.war /usr/local/tomcat/webapps/ROOT.war
+
+# Change ownership of the application files to the non-root user
+RUN chown -R appuser:appgroup /usr/local/tomcat/webapps
+
+# Set the user to non-root user
+USER appuser
+
+# Expose port 8080
+EXPOSE 8080
+
+# Command to run Tomcat
+CMD ["catalina.sh", "run"]
+
+
+
+docker run -p 8080:8080 -v /path/on/host:/usr/local/tomcat/webapps my-java-app
